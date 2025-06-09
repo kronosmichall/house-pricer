@@ -1,4 +1,4 @@
-module house-pricer.com/m/v2
+module house-pricer
 
 go 1.24.0
 

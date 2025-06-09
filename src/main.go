@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -257,43 +256,6 @@ func fetchAll() []Offert {
 	}
 }
 
-func initDb() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "./offerts.db")
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS offerts (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		title TEXT NOT NULL,
-		url TEXT UNIQUE NOT NULL,
-		description TEXT NOT NULL,
-		price INTEGER NOT NULL,
-		area TEXT NOT NULL,
-		morgage REAL,
-		furnished INTEGER
-	);
-`)
-	return db, err
-}
-
-func insertIntoDb(db *sql.DB, offerts []Offert) error {
-	stmt, err := db.Prepare("INSERT OR IGNORE INTO offerts(title, url, description, price, area, morgage, furnished) VALUES(?,?,?,?,?,?,?)")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer stmt.Close()
-	return nil
-}
-
 func main() {
-	db, err := initDb()
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	offerts := fetchAll()
-	fmt.Println(offerts[0])
+	// offerts := fetchAll()
 }
