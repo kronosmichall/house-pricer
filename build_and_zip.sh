@@ -1,2 +1,3 @@
 ./build.sh
-zip build/house-pricer.zip build/bootstrap
+cd build
+zip house-pricer.zip bootstrap

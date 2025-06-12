@@ -13,3 +13,8 @@ variable "project_name" {
   description = "AWS project name"
   default = "House pricer"
 }
+
+variable "lambda_timeout" {
+  type = number
+  description = "lambda timeout"
+}

@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"context"
@@ -7,11 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
+	"house-pricer/types"
+
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	dbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 const batch_size = 25
@@ -22,7 +23,7 @@ type Client struct {
 	ctx       context.Context
 }
 
-func getClient() dynamodb.Client {
+func GetClient() Client {
 	ctx := context.Background()
 	region := os.Getenv("AWS_REGION")
 	if region == "" {
@@ -38,11 +39,11 @@ func getClient() dynamodb.Client {
 		panic(err)
 	}
 
-	db = dynamodb.NewFromConfig(cnf)
+	db := dynamodb.NewFromConfig(cnf)
 	return Client{db, tableName, ctx}
 }
 
-func insert(client Client, offerts []Offert) error {
+func Insert(client Client, offerts []types.Offert) error {
 	for i := 0; i < len(offerts); i++ {
 		end := i + batch_size
 		if end > len(offerts) {
@@ -58,8 +59,8 @@ func insert(client Client, offerts []Offert) error {
 	return nil
 }
 
-func insertBatch(client Client, offerts []Offert) error {
-	writeRequests := make([]types.WriteRequest, 0, len(offerts))
+func insertBatch(client Client, offerts []types.Offert) error {
+	writeRequests := make([]dbTypes.WriteRequest, 0, len(offerts))
 	now := time.Now()
 
 	for _, offert := range offerts {
@@ -71,8 +72,8 @@ func insertBatch(client Client, offerts []Offert) error {
 			log.Println("Failed to marshal item ", offert)
 			return err
 		}
-		writeRequest := types.WriteRequest{
-			PutRequest: &types.PutRequest{
+		writeRequest := dbTypes.WriteRequest{
+			PutRequest: &dbTypes.PutRequest{
 				Item: av,
 			},
 		}
@@ -85,7 +86,7 @@ func insertBatch(client Client, offerts []Offert) error {
 	}
 
 	batchInput := &dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]types.WriteRequest{
+		RequestItems: map[string][]dbTypes.WriteRequest{
 			"tableName": writeRequests,
 		},
 	}

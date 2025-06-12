@@ -42,11 +42,11 @@ resource "aws_lambda_function" "house_pricer" {
   handler       = "bootstrap"
   runtime       = "provided.al2023"
   role          = aws_iam_role.lambda_exec.arn
+  timeout       = var.lambda_timeout
 
   source_code_hash = filebase64sha256("../build/house-pricer.zip")
   environment {
     variables = {
-      AWS_REGION          = var.aws_region                        # Using a variable for flexibility
       DYNAMODB_TABLE_NAME = var.dynamodb_table_name # Reference the table name directly
     }
   }
