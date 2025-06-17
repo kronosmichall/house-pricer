@@ -18,3 +18,8 @@ variable "lambda_timeout" {
   type = number
   description = "lambda timeout"
 }
+
+variable "lambda_memory_size" {
+  type = number
+  description = "max ram in MB"
+}

@@ -43,6 +43,7 @@ resource "aws_lambda_function" "house_pricer" {
   runtime       = "provided.al2023"
   role          = aws_iam_role.lambda_exec.arn
   timeout       = var.lambda_timeout
+  memory_size   = var.lambda_memory_size
 
   source_code_hash = filebase64sha256("../build/house-pricer.zip")
   environment {
