@@ -2,14 +2,71 @@ package olx
 
 import (
 	"errors"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"house-pricer/common"
 	"house-pricer/types"
 )
 
+const (
+	Root = "https://www.olx.pl"
+	Home = "https://www.olx.pl/nieruchomosci/mieszkania/sprzedaz/warszawa"
+)
 const OffertType = "olx"
+
+var PriceOptions = [...]int{
+	140_000,
+	160_000,
+	180_000,
+	200_000,
+	250_000,
+	300_000,
+	350_000,
+	400_000,
+	500_000,
+	600_000,
+	700_000,
+	800_000,
+	1_000_000,
+}
+
+func UrlWithParamsGenerator() <-chan string {
+	uri, err := url.Parse(Home)
+	if err != nil {
+		panic(err)
+	}
+	q := uri.Query()
+
+	out := make(chan string)
+
+	go func() {
+		defer close(out)
+		for i := range len(PriceOptions) {
+			q.Del("search[filter_float_price:from]")
+			q.Del("search[filter_float_price:to]")
+
+			if i > 0 {
+				price := strconv.Itoa(PriceOptions[i])
+				q.Add("search[filter_float_price:from]", price)
+			}
+			if i < len(PriceOptions)-1 {
+				price := strconv.Itoa(PriceOptions[i+1])
+				q.Add("search[filter_float_price:to]", price)
+			}
+
+			uri.RawQuery = q.Encode()
+			str := uri.String()
+			str = strings.Replace(str, "?", "/?", 1)
+			str = strings.ReplaceAll(str, "%3A", ":")
+
+			out <- str
+		}
+	}()
+	return out
+}
 
 func getFurnished(tag string) int {
 	re := regexp.MustCompile(`Umeblowane: (\w+)</p>`)

@@ -16,14 +16,34 @@ import (
 )
 
 func FetchAll() []types.Offert {
+	result := []types.Offert{}
 	offertsChannel := make(chan []types.Offert)
-	doc := getDocOrPanic(home)
+	threadsWaiting := 0
+
+	for urlWithParams := range olx.UrlWithParamsGenerator() {
+		fmt.Println(urlWithParams)
+		threadsWaiting += 1
+		go fetchAllFromUrl(urlWithParams, offertsChannel)
+	}
+
+	for threadsWaiting > 0 {
+		offerts := <-offertsChannel
+		result = append(result, offerts...)
+		threadsWaiting -= 1
+	}
+
+	return result
+}
+
+func fetchAllFromUrl(urlWithParams string, resultChannel chan []types.Offert) {
+	offertsChannel := make(chan []types.Offert)
+	doc := getDocOrPanic(urlWithParams)
 	lastPage := getLastPage(doc)
 	result := []types.Offert{}
 	pagesToHandle := lastPage
 
 	for page := 1; page <= lastPage; page++ {
-		go fetchPage(page, offertsChannel)
+		go fetchPage(olx.Root, urlWithParams, page, offertsChannel)
 	}
 
 	for pagesToHandle > 0 {
@@ -31,23 +51,21 @@ func FetchAll() []types.Offert {
 		result = append(result, offerts...)
 		pagesToHandle -= 1
 	}
-	return result
+	resultChannel <- result
 }
 
-const (
-	root = "https://www.olx.pl"
-	home = "https://www.olx.pl/nieruchomosci/mieszkania/sprzedaz/warszawa"
-)
-
-var TypeOptions = [...]string{olx.OffertType, otodom.OffertType}
+var TypeOptions = [...]string{
+	olx.OffertType,
+	// otodom.OffertType,
+}
 
 var (
 	nonDigit = regexp.MustCompile(`\D`)
 	price    = regexp.MustCompile(`[\d\.,]+`)
 )
 
-func getDocOrPanic(url string) *goquery.Document {
-	res, err := http.Get(url)
+func getDocOrPanic(uri string) *goquery.Document {
+	res, err := http.Get(uri)
 	if err != nil {
 		panic(err)
 	}
@@ -61,8 +79,8 @@ func getDocOrPanic(url string) *goquery.Document {
 	return doc
 }
 
-func getDoc(url string, typ string, docChannel chan types.Doc, docErrChannel chan error) {
-	res, err := http.Get(url)
+func getDoc(uri string, typ string, docChannel chan types.Doc, docErrChannel chan error) {
+	res, err := http.Get(uri)
 	if err != nil {
 		docErrChannel <- err
 	}
@@ -76,61 +94,61 @@ func getDoc(url string, typ string, docChannel chan types.Doc, docErrChannel cha
 
 	doc := types.Doc{
 		Doc:  goqueryDoc,
-		Url:  url,
+		Url:  uri,
 		Type: typ,
 	}
 	docChannel <- doc
 }
 
-func getCardUrls(doc *goquery.Document) []string {
-	urls := []string{}
+func getCarduris(doc *goquery.Document) []string {
+	uris := []string{}
 	iter := doc.Find(`div[data-cy="l-card"] a[href]`).EachIter()
 	for _, element := range iter {
-		url, exists := element.Attr("href")
+		uri, exists := element.Attr("href")
 		if exists {
-			urls = append(urls, url)
+			uris = append(uris, uri)
 		}
 	}
-	return urls
+	return uris
 }
 
-func addHostUrl(host string, url string) string {
-	if strings.Contains(url, "http") {
-		return url
+func addHosturi(host string, uri string) string {
+	if strings.Contains(uri, "http") {
+		return uri
 	} else {
-		return host + url
+		return host + uri
 	}
 }
 
-func getType(url string) (string, error) {
+func getType(uri string) (string, error) {
 	for _, typ := range TypeOptions {
-		if strings.Contains(url, typ) {
+		if strings.Contains(uri, typ) {
 			return typ, nil
 		}
 	}
 	return "", fmt.Errorf("this card does not match any of types")
 }
 
-func fetchPage(page int, ch chan []types.Offert) {
+func fetchPage(root string, urlWithParams string, page int, ch chan []types.Offert) {
 	docChannel := make(chan types.Doc)
 	docErrChannel := make(chan error)
 	offertChannel := make(chan types.Offert)
 	offertErrChannel := make(chan error)
 
-	url := fmt.Sprintf("%s/?page=%d", home, page)
-	doc := getDocOrPanic(url)
+	uri := fmt.Sprintf("%s&page=%d", urlWithParams, page)
+	doc := getDocOrPanic(uri)
 
-	cardUrls := getCardUrls(doc)
+	carduris := getCarduris(doc)
 	cardsToHandle := 0
 	offerts := []types.Offert{}
 
-	for _, cardUrl := range cardUrls {
-		cardUrlWithHost := addHostUrl(root, cardUrl)
-		typ, err := getType(cardUrlWithHost)
+	for _, carduri := range carduris {
+		carduriWithHost := addHosturi(root, carduri)
+		typ, err := getType(carduriWithHost)
 		if err != nil {
 			continue
 		}
-		go getDoc(cardUrlWithHost, typ, docChannel, docErrChannel)
+		go getDoc(carduriWithHost, typ, docChannel, docErrChannel)
 		cardsToHandle += 1
 	}
 
