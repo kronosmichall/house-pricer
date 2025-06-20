@@ -43,13 +43,8 @@ func GetClient() Client {
 	return Client{db, tableName, ctx}
 }
 
-func Insert(client Client, offerts []types.Offert) error {
-	for i := 0; i < len(offerts); i++ {
-		end := i + batch_size
-		if end > len(offerts) {
-			end = len(offerts)
-		}
-		batch := offerts[i:end]
+func Insert(client Client, offertsChannel chan []types.Offert) error {
+	for batch := range offertsChannel {
 		err := insertBatch(client, batch)
 		if err != nil {
 			return err

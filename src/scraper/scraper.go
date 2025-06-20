@@ -15,24 +15,22 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func FetchAll() []types.Offert {
-	result := []types.Offert{}
+func FetchAll(resultChannel chan []types.Offert) {
+	defer close(resultChannel)
+
 	offertsChannel := make(chan []types.Offert)
 	threadsWaiting := 0
 
 	for urlWithParams := range olx.UrlWithParamsGenerator() {
-		fmt.Println(urlWithParams)
 		threadsWaiting += 1
 		go fetchAllFromUrl(urlWithParams, offertsChannel)
 	}
 
 	for threadsWaiting > 0 {
 		offerts := <-offertsChannel
-		result = append(result, offerts...)
+		resultChannel <- offerts
 		threadsWaiting -= 1
 	}
-
-	return result
 }
 
 func fetchAllFromUrl(urlWithParams string, resultChannel chan []types.Offert) {
